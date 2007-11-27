@@ -1,0 +1,59 @@
+# - Try to find evolution-data-server components
+# Set evolution-data-server headers, libraries and the answer to all questions.
+#
+#  LIBEBOOK_INCLUDE_DIR         Location of libebook headers 
+#  LIBEBOOK_LIBRARIES           List of libaries to use libebook
+#
+#  LIBECAL_INCLUDE_DIR         Location of libecal headers 
+#  LIBECAL_LIBRARIES           List of libaries to use libecal
+#
+#  LIBEDATABOOK_INCLUDE_DIR         Location of libedata-book headers 
+#  LIBEDATABOOK_LIBRARIES           List of libaries to use libedata-book
+#
+#  LIBEDATACAL_INCLUDE_DIR         Location of libedata-cal headers 
+#  LIBEDATACAL_LIBRARIES           List of libaries to use libedata-cal
+#
+#  LIBEDATASERVER_INCLUDE_DIR         Location of libedataserver headers 
+#  LIBEDATASERVER_LIBRARIES           List of libaries to use libedataserver
+#
+# Copyright (c) 2007 Alban Browaeys <prahal@yahoo.com>
+#
+#  Redistribution and use is allowed according to the terms of the New
+#  BSD license.
+#  For details see the accompanying COPYING-CMAKE-SCRIPTS file.
+#
+
+
+FIND_PACKAGE( EDS1.2 )
+FIND_PACKAGE( EDS1.0 )
+
+IF ( EDS1.2_FOUND )
+  MESSAGE( STATUS "Evolution Data Server 1.2 used." )
+  SET( LIBEBOOK_INCLUDE_DIR ${LIBEBOOK1.2_INCLUDE_DIR} )
+  SET( LIBEBOOK_LIBRARIES ${LIBEBOOK1.2_LIBRARIES} )
+  SET( LIBECAL_INCLUDE_DIR ${LIBECAL1.2_INCLUDE_DIR} )
+  SET( LIBECAL_LIBRARIES ${LIBECAL1.2_LIBRARIES} )
+  SET( LIBEDATABOOK_INCLUDE_DIR ${LIBEDATABOOK1.2_INCLUDE_DIR} )
+  SET( LIBEDATABOOK_LIBRARIES ${LIBEDATABOOK1.2_LIBRARIES} )
+  SET( LIBEDATACAL_INCLUDE_DIR ${LIBEDATACAL1.2_INCLUDE_DIR} )
+  SET( LIBEDATACAL_LIBRARIES ${LIBEDATACAL1.2_LIBRARIES} )
+  SET( LIBEDATASERVER_INCLUDE_DIR ${LIBEDATASERVER1.2_INCLUDE_DIR} )
+  SET( LIBEDATASERVER_LIBRARIES ${LIBEDATASERVER1.2_LIBRARIES} )
+ELSE ( EDS1.2_FOUND )
+  IF ( EDS1.0_FOUND )
+    MESSAGE( STATUS "Evolution Data Server 1.0 used." )
+    SET( LIBEBOOK_INCLUDE_DIR ${LIBEBOOK1.0_INCLUDE_DIR} )
+    SET( LIBEBOOK_LIBRARIES ${LIBEBOOK1.0_LIBRARIES} )
+    SET( LIBECAL_INCLUDE_DIR ${LIBECAL1.0_INCLUDE_DIR} )
+    SET( LIBECAL_LIBRARIES ${LIBECAL1.0_LIBRARIES} )
+    SET( LIBEDATABOOK_INCLUDE_DIR ${LIBEDATABOOK1.0_INCLUDE_DIR} )
+    SET( LIBEDATABOOK_LIBRARIES ${LIBEDATABOOK1.0_LIBRARIES} )
+    SET( LIBEDATACAL_INCLUDE_DIR ${LIBEDATACAL1.0_INCLUDE_DIR} )
+    SET( LIBEDATACAL_LIBRARIES ${LIBEDATACAL1.0_LIBRARIES} )
+    SET( LIBEDATASERVER_INCLUDE_DIR ${LIBEDATASERVER1.0_INCLUDE_DIR} )
+    SET( LIBEDATASERVER_LIBRARIES ${LIBEDATASERVER1.0_LIBRARIES} )
+  ELSE ( EDS1.0_FOUND )
+    MESSAGE( STATUS "Evolution Data Server not found." )
+  ENDIF ( EDS1.0_FOUND )
+ENDIF ( EDS1.2_FOUND )
+
