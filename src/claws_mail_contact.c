@@ -19,114 +19,25 @@
 #include "claws_mail_sync.h"
 #include "claws_mail_connect.h"
 
+#include <opensync/opensync.h>
+#include <opensync/opensync-plugin.h>
+#include <opensync/opensync-data.h>
+
 #include <glib.h>
 #include <string.h>
 
 #define VCARD_UID_STR "\nUID:"
 
 static gchar* get_uid_from_vcard(gchar*);
+static gchar* contact_hash(gchar*);
 
-/* The function commits changes of contact entries to Claws-Mail's
- * addressbook.
- * It returns TRUE on success, FALSE on error
- */
-osync_bool claws_mail_contact_commit(OSyncContext *ctx, OSyncChange *change)
+static gchar* contact_hash(gchar *vcard)
 {
-	gchar *vcard;
-	const gchar *uid;
-	OSyncChangeType change_type;
-	OSyncError *error = NULL;
-
-	osync_trace(TRACE_ENTRY, "%s() (%p, %p)", __func__, ctx, change);
-
-	ClawsMailSyncEnv *env=(ClawsMailSyncEnv*)osync_context_get_plugin_data(ctx);
-
-	vcard = osync_change_get_data(change);
-	change_type = osync_change_get_changetype(change);
-	uid = osync_change_get_uid(change);
-
-	switch(change_type) {
-	case CHANGE_DELETED:
-		osync_trace(TRACE_INTERNAL, "Want to delete: '%s'",uid);
-		break;
-	case CHANGE_ADDED:
-		osync_trace(TRACE_INTERNAL, "Want to add: '%s'",uid);
-		break;
-	case CHANGE_MODIFIED:
-		osync_trace(TRACE_INTERNAL, "Want to modify: '%s'",uid);
-		break;
-	default:
-		osync_trace(TRACE_INTERNAL, "Unknown change type");
-	}
-
-	osync_context_report_success(ctx);
-	osync_hashtable_update_hash(env->hashtable, change);
-
-	osync_trace(TRACE_EXIT, "%s", __func__);
-	return TRUE;
-
-error:
-	osync_context_report_osyncerror(ctx, &error);
-	osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(&error));
-	osync_error_free(&error);
-	return FALSE;
-}
-
-/* The function gets all contact entries and checks for
- * changes by comparing old hash with new hash.
- * It returns TRUE on success, FALSE on error
- */
-osync_bool claws_mail_contact_get_changeinfo(OSyncContext *ctx)
-{
-	gchar *vcard;
-
-	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, ctx);
-
-	ClawsMailSyncEnv *env=(ClawsMailSyncEnv*)osync_context_get_plugin_data(ctx);
-
-	// check for slowsync and prepare the "contact" hashtable if needed
-	if (osync_member_get_slow_sync(env->member, "contact") == TRUE) {
-		osync_trace(TRACE_INTERNAL, "slow sync");
-		osync_hashtable_set_slow_sync(env->hashtable, "contact");
-	}
-
-	/* While getting all contacts, one at a time */
-	while((vcard = claws_mail_connect_get_next_contact()) != NULL) {
-		OSyncChange *change = osync_change_new();
-		gchar *uid;
-		gchar *hash;
-		guint ihash;
-
-		osync_change_set_member(change, env->member);
-
-		/* UID */
-		uid = get_uid_from_vcard(vcard);
-		osync_change_set_uid(change, uid);
-		g_free(uid);
-
-		/* hash */
-		ihash = g_str_hash(vcard);
-		hash = g_strdup_printf("%u",ihash);
-		osync_change_set_hash(change, hash);
-		g_free(hash);
-
-		osync_change_set_objformat_string(change, "vcard21");
-		osync_change_set_objtype_string(change, "contact");
-
-		osync_change_set_data(change, vcard, strlen(vcard), TRUE);
-		g_free(vcard);
-
-		if(osync_hashtable_detect_change(env->hashtable, change)) {
-			osync_context_report_change(ctx, change);
-			osync_hashtable_update_hash(env->hashtable, change);
-		}
-
-	}
-
-	osync_hashtable_report_deleted(env->hashtable, ctx, "contact");
-
-	osync_trace(TRACE_EXIT, "%s()", __func__);
-	return TRUE;
+	guint ihash;
+	gchar *hash;
+	ihash = g_str_hash(vcard);
+	hash = g_strdup_printf("%u", ihash);
+	return hash;
 }
 
 static gchar* get_uid_from_vcard(gchar *vcard)
@@ -135,17 +46,238 @@ static gchar* get_uid_from_vcard(gchar *vcard)
 	gchar *start;
 	int ii;
 
-	start = strstr(vcard,VCARD_UID_STR);
-	if(!start) {
+	start = strstr(vcard, VCARD_UID_STR);
+	if (!start) {
 		osync_trace(TRACE_INTERNAL, "Claws-Mail: Contact doesn't have a UID.");
 		return g_strdup("123");
 	}
 
 	start += strlen(VCARD_UID_STR);
 	ii = 0;
-	while(start && *start && (*start != '\n') && (ii < BUFFSIZE-1))
+	while (start && *start && (*start != '\n')&& (ii < BUFFSIZE-1))
 		uid[ii++] = *start++;
 	uid[ii] = '\0';
 
 	return g_strdup(uid);
+}
+
+void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
+		OSyncContext *ctx)
+{
+	int ii;
+	char **uids;
+	char *vcard;
+	ClawsMailEnv *env = (ClawsMailEnv*)userdata;
+
+	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
+
+	OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
+	ClawsMailSinkEnv *sinkenv = osync_objtype_sink_get_userdata(sink);
+
+	OSyncError *error = NULL;
+
+	/* check for slowsync and prepare the "contact" hashtable if needed */
+	if (osync_objtype_sink_get_slowsync(sinkenv->sink)) {
+		osync_trace(TRACE_INTERNAL, "Slow sync requested");
+		osync_hashtable_reset(sinkenv->hashtable);
+	}
+
+	/* While getting all contacts, one at a time */
+	while ((vcard = claws_mail_connect_get_next_contact()) != NULL) {
+		gchar *uid;
+		gchar *hash;
+		char *data;
+		OSyncChangeType changetype;
+		OSyncChange *change;
+		OSyncData *odata;
+
+		hash = contact_hash(vcard);
+		uid = get_uid_from_vcard(vcard);
+
+		/* Now get the data of this change */
+		data = vcard;
+
+		/* Report every entry .. every unreported entry got deleted. */
+		osync_hashtable_report(sinkenv->hashtable, uid);
+
+		changetype = osync_hashtable_get_changetype(sinkenv->hashtable, uid, hash);
+
+		if (changetype == OSYNC_CHANGE_TYPE_UNMODIFIED) {
+			g_free(hash);
+			g_free(uid);
+			continue;
+		}
+
+		/* Set the hash of the object */
+		osync_hashtable_update_hash(sinkenv->hashtable, changetype, uid, hash);
+
+		/* Make the new change to report */
+		change = osync_change_new(&error);
+
+		if (!change) {
+			osync_context_report_osyncwarning(ctx, error);
+			osync_error_unref(&error);
+			continue;
+		}
+
+		/* Now set the uid of the object */
+		osync_change_set_uid(change, uid);
+		osync_change_set_hash(change, hash);
+		osync_change_set_changetype(change, changetype);
+
+		g_free(hash);
+
+		odata = osync_data_new(data, 0, sinkenv->objformat, &error);
+		if (!odata) {
+			osync_change_unref(change);
+			osync_context_report_osyncwarning(ctx, error);
+			osync_error_unref(&error);
+			continue;
+		}
+
+		osync_data_set_objtype(odata, osync_objtype_sink_get_name(sinkenv->sink));
+
+		/* Set the data for the object */
+		osync_change_set_data(change, odata);
+		osync_data_unref(odata);
+
+		/* Report the change */
+		osync_context_report_change(ctx, change);
+
+		osync_change_unref(change);
+
+		g_free(uid);
+	}
+
+	/* Check for deleted entries */
+	uids = osync_hashtable_get_deleted(sinkenv->hashtable);
+
+	for (ii=0; uids[ii]; ii++) {
+	  OSyncData *odata;
+		OSyncChange *change = osync_change_new(&error);
+		if (!change) {
+			g_free(uids[ii]);
+			osync_context_report_osyncwarning(ctx, error);
+			osync_error_unref(&error);
+			continue;
+		}
+
+		osync_change_set_uid(change, uids[ii]);
+		osync_change_set_changetype(change, OSYNC_CHANGE_TYPE_DELETED);
+
+		odata = osync_data_new(NULL, 0, sinkenv->objformat, &error);
+		if (!odata) {
+			g_free(uids[ii]);
+			osync_change_unref(change);
+			osync_context_report_osyncwarning(ctx, error);
+			osync_error_unref(&error);
+			continue;
+		}
+
+		osync_data_set_objtype(odata, osync_objtype_sink_get_name(sinkenv->sink));
+		osync_change_set_data(change, odata);
+		osync_data_unref(odata);
+
+		osync_context_report_change(ctx, change);
+
+		osync_hashtable_update_hash(sinkenv->hashtable,
+				osync_change_get_changetype(change), osync_change_get_uid(change), NULL);
+
+		osync_change_unref(change);
+		g_free(uids[ii]);
+	}
+	g_free(uids);
+
+	osync_context_report_success(ctx);
+	osync_trace(TRACE_EXIT, "%s", __func__);
+}
+
+void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
+		OSyncContext *ctx, OSyncChange *change)
+{
+	gchar *vcard;
+	char *uid;
+	char *hash;
+	OSyncError *error = NULL;
+	ClawsMailEnv *env = (ClawsMailEnv*)userdata;
+
+	OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
+	ClawsMailSinkEnv *sinkenv = osync_objtype_sink_get_userdata(sink);
+
+	osync_data_get_data(osync_change_get_data(change), &vcard, NULL);
+
+	switch (osync_change_get_changetype(change)) {
+	case OSYNC_CHANGE_TYPE_DELETED:
+		//Delete the change
+		// TODO: implement deleting here
+
+		uid = get_uid_from_vcard(vcard);
+		osync_trace(TRACE_INTERNAL, "Want to delete: '%s'", uid);
+
+		if (0) {
+			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to delete contact.");
+			goto error;
+		}
+		break;
+	case OSYNC_CHANGE_TYPE_ADDED:
+		//Add the change
+		// TODO: Implement adding here
+		if (0) {
+			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write contact.");
+			goto error;
+		}
+
+		uid = get_uid_from_vcard(vcard);
+
+		osync_trace(TRACE_INTERNAL, "Want to add: '%s'", uid);
+
+		osync_change_set_uid(change, uid);
+		g_free(uid);
+
+		/* generate and set hash of entry */
+		hash = contact_hash(vcard);
+		osync_change_set_hash(change, hash);
+		g_free(hash);
+
+		break;
+
+	case OSYNC_CHANGE_TYPE_MODIFIED:
+		//Modify the change
+		// TODO: Implement modifying here
+
+		if (0) {
+			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to modify contact.");
+			goto error;
+		}
+
+		uid = get_uid_from_vcard(vcard);
+		osync_trace(TRACE_INTERNAL, "Want to modify: '%s'", uid);
+
+		hash = contact_hash(vcard);
+		osync_change_set_hash(change, hash);
+		g_free(hash);
+
+		break;
+
+	default:
+		osync_trace(TRACE_INTERNAL, "Unknown change type");
+		break;
+	}
+
+	/* Calculate the hash */
+	osync_hashtable_update_hash(sinkenv->hashtable,
+			osync_change_get_changetype(change), osync_change_get_uid(change),
+			osync_change_get_hash(change));
+
+	/* Answer the call */
+	osync_context_report_success(ctx);
+
+	osync_trace(TRACE_EXIT, "%s", __func__);
+	return;
+
+	error:
+
+	osync_context_report_osyncerror(ctx, error);
+	osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(&error));
+	osync_error_unref(&error);
 }

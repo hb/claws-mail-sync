@@ -15,8 +15,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pluginconfig.h"
-
 #include "claws_mail_connect.h"
 
 #include <opensync/opensync.h>

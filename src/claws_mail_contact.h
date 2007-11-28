@@ -20,7 +20,10 @@
 
 #include <opensync/opensync.h>
 
-osync_bool claws_mail_contact_commit(OSyncContext*, OSyncChange*);
-osync_bool claws_mail_contact_get_changeinfo(OSyncContext*);
+void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
+		OSyncContext *ctx);
+
+void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
+		OSyncContext *ctx, OSyncChange *change);
 
 #endif /*CLAWS_MAIL_CONTACT_H*/

@@ -16,164 +16,236 @@
  */
 
 #include <opensync/opensync.h>
+#include <opensync/opensync-plugin.h>
+#include <opensync/opensync-format.h>
+#include <opensync/opensync-version.h>
 
 #include "claws_mail_sync.h"
 #include "claws_mail_contact.h"
 #include "claws_mail_connect.h"
 
 #include <glib.h>
+#include <string.h>
 
-static void free_claws_mail_env(ClawsMailSyncEnv*);
+static void free_claws_mail_env(ClawsMailEnv*);
 
-
-static void free_claws_mail_env(ClawsMailSyncEnv *env)
+static void free_claws_mail_env(ClawsMailEnv *env)
 {
+	while (env->sinks) {
+		ClawsMailSinkEnv *sinkenv = env->sinks->data;
+
+		if (sinkenv->sink)
+			osync_objtype_sink_unref(sinkenv->sink);
+
+		env->sinks = g_list_remove(env->sinks, sinkenv);
+	}
 	g_free(env);
 }
 
-static void *initialize(OSyncMember *member, OSyncError **error)
+static void connect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 {
-	osync_trace(TRACE_ENTRY, "%s(%p, %p)", __func__, member, error);
+	char *tablepath;
 
-	char *configdata = NULL;
-	int configsize;
+	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
-	ClawsMailSyncEnv *env = g_new0(ClawsMailSyncEnv,1);
+	ClawsMailEnv *env = (ClawsMailEnv*) userdata;
+	OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
+	ClawsMailSinkEnv *sinkenv = osync_objtype_sink_get_userdata(sink);
 
-	if(!osync_member_get_config(member, &configdata, &configsize, error)) {
-	  osync_error_update(error, "Unable to get config data: %s",
-			     osync_error_print(error));
-	  free_claws_mail_env(env);
-	  return NULL;
-	}
-
-	//Process the config data here and set the options on your environment
-	if(configdata)
-		g_free(configdata);
-	env->member = member;
-
-	// create the hashtable
-	env->hashtable = osync_hashtable_new();
-
-	osync_trace(TRACE_EXIT, "%s: %p", __func__, env);
-	return (void *)env;
-}
-
-static void connect(OSyncContext *ctx)
-{
-	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, ctx);
-
-	ClawsMailSyncEnv *env=(ClawsMailSyncEnv*)osync_context_get_plugin_data(ctx);
+	OSyncError *error = NULL;
 
 	/* connect to claws mail */
-	if(claws_mail_connect())
-	  osync_context_report_success(ctx);
+	if (claws_mail_connect())
+		osync_context_report_success(ctx);
 	else {
-	  osync_context_report_error(ctx, OSYNC_ERROR_GENERIC, "Connection failed");
-	  free_claws_mail_env(env);
-	  return;
-	}
-
-	// load hashtable
-	OSyncError *error = NULL;
-	if(!osync_hashtable_load(env->hashtable, env->member, &error)) {
-		osync_context_report_osyncerror(ctx, &error);
+		osync_context_report_error(ctx, OSYNC_ERROR_GENERIC, "Connection failed");
+		free_claws_mail_env(env);
 		return;
 	}
 
-	osync_trace(TRACE_EXIT, "%s", __func__);
-}
+	// load hashtable
+	tablepath = g_strdup_printf("%s/hashtable.db",
+			osync_plugin_info_get_configdir(info));
+	sinkenv->hashtable = osync_hashtable_new(tablepath,
+			osync_objtype_sink_get_name(sink), &error);
+	g_free(tablepath);
 
-static void get_changeinfo(OSyncContext *ctx)
-{
-  gboolean contact_changes = TRUE;
+	if (!sinkenv->hashtable)
+		goto error;
 
-	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, ctx);
-
-	ClawsMailSyncEnv *env=(ClawsMailSyncEnv*)osync_context_get_plugin_data(ctx);
-
-	// get changes of contacts
-	if(osync_member_objtype_enabled(env->member, "contact"))
-	  contact_changes = claws_mail_contact_get_changeinfo(ctx);
-
-	if(contact_changes)
-	  osync_context_report_success(ctx);
-
-	osync_trace(TRACE_EXIT, "%s", __func__);
-}
-
-static void sync_done(OSyncContext *ctx)
-{
-	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, ctx);
-
-	ClawsMailSyncEnv *env=(ClawsMailSyncEnv*)osync_context_get_plugin_data(ctx);
-
-	// forget reported changes
-	osync_hashtable_forget(env->hashtable);
+	/* TODO: anchor stuff */
+	osync_objtype_sink_set_slowsync(sink, TRUE);
 
 	osync_context_report_success(ctx);
 
 	osync_trace(TRACE_EXIT, "%s", __func__);
+	return;
+
+	error:
+
+	osync_context_report_osyncerror(ctx, error);
+	osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(&error));
+	osync_error_unref(&error);
 }
 
-static void disconnect(OSyncContext *ctx)
+static void sync_done(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 {
-	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, ctx);
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
-	ClawsMailSyncEnv *env=(ClawsMailSyncEnv*)osync_context_get_plugin_data(ctx);
+  // TODO: Anchor stuff
 
-	claws_mail_disconnect();
-
-	// close the hashtable
-	osync_hashtable_close(env->hashtable);
-
-	osync_context_report_success(ctx);
-	osync_trace(TRACE_EXIT, "%s", __func__);
+  osync_context_report_success(ctx);
+  osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
-static void finalize(void *data)
+static void disconnect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 {
-	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, data);
-	ClawsMailSyncEnv *env = (ClawsMailSyncEnv*)data;
+  OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
+  ClawsMailSinkEnv *sinkenv = osync_objtype_sink_get_userdata(sink);
 
-	// close and free hashtable
-	osync_hashtable_close(env->hashtable);
-	osync_hashtable_free(env->hashtable);
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
-	free_claws_mail_env(env);
-	osync_trace(TRACE_EXIT, "%s", __func__);
+  /* Close all stuff you need to close */
+  claws_mail_disconnect();
+
+  /* Close the hashtable */
+  osync_hashtable_free(sinkenv->hashtable);
+  sinkenv->hashtable = NULL;
+
+  osync_context_report_success(ctx);
+  osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
-void get_info(OSyncEnv *env)
+static void finalize(void *userdata)
 {
-	OSyncPluginInfo *info = osync_plugin_new_info(env);
+  ClawsMailEnv *env = (ClawsMailEnv*)userdata;
+  osync_trace(TRACE_ENTRY, "%s(%p)", __func__, userdata);
 
-	//Tell opensync something about (y)our plugin
-	info->name = "claws-mail-sync";
-	info->longname = "Claws-Mail email program";
-	info->description = "Sync with Claws-Mail addressbook";
-	//the version of the api we are using, (1 at the moment)
-	info->version = 1;
+  /* Free all stuff */
+  free_claws_mail_env(env);
+  osync_trace(TRACE_EXIT, "%s", __func__);
+}
 
-	//Now set the function we made earlier
-	info->functions.initialize = initialize;
-	info->functions.connect = connect;
-	info->functions.sync_done = sync_done;
-	info->functions.disconnect = disconnect;
-	info->functions.finalize = finalize;
-	info->functions.get_changeinfo = get_changeinfo;
+static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info, OSyncError **error)
+{
+  const char *configdata = NULL;
+  ClawsMailEnv *env;
 
-	info->timeouts.connect_timeout = 10;
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, plugin, info, error);
 
-	info->timeouts.sync_done_timeout      = 60;
-	info->timeouts.disconnect_timeout     = 60;
-	info->timeouts.get_changeinfo_timeout = 60;
-	info->timeouts.get_data_timeout       = 60;
-	info->timeouts.commit_timeout         = 60;
-	info->timeouts.read_change_timeout    = 60;
+  env = osync_try_malloc0(sizeof(ClawsMailEnv), error);
+  if (!env)
+    goto error;
+ 
+  env->sinks = NULL;
 
-	osync_plugin_accept_objtype(info, "contact");
-	osync_plugin_accept_objformat(info, "contact", "vcard21", NULL);
-	osync_plugin_set_commit_objformat(info, "contact", "vcard21",
-	                                  claws_mail_contact_commit);
+  /* get the config file for this plugin */
+  configdata = osync_plugin_info_get_config(info);
+  if (!configdata) {
+    osync_error_set(error, OSYNC_ERROR_GENERIC, "Unable to get config data.");
+    goto error_free_env;
+  }
+
+  osync_trace(TRACE_INTERNAL, "Config: '%s'", configdata);
+
+  /* Process the configdata and set the options on environment */
+
+  OSyncFormatEnv *formatenv = osync_plugin_info_get_format_env(info);
+
+  ClawsMailSinkEnv *sinkenv = osync_try_malloc0(sizeof(ClawsMailSinkEnv), error);
+  if (!sinkenv)
+    goto error_free_env;
+
+  sinkenv->sink = osync_objtype_sink_new("contact", error);
+
+  if (!sinkenv->sink)
+    goto error_free_env;
+
+  osync_objtype_sink_add_objformat(sinkenv->sink, "vcard21");
+
+  OSyncObjTypeSinkFunctions functions;
+  memset(&functions, 0, sizeof(functions));
+  functions.connect     = connect;
+  functions.disconnect  = disconnect;
+  functions.get_changes = claws_mail_contact_get_changes;
+  functions.commit      = claws_mail_contact_commit_change;
+  functions.sync_done   = sync_done;
+
+  osync_objtype_sink_set_functions(sinkenv->sink, functions, sinkenv);
+  osync_plugin_info_add_objtype(info, sinkenv->sink);
+
+  sinkenv->objformat = osync_format_env_find_objformat(formatenv, "vcard21");
+
+  env->sinks = g_list_append(env->sinks, sinkenv);
+
+  osync_trace(TRACE_EXIT, "%s: %p", __func__, env);
+  return (void *) env;
+  
+ error_free_env:
+  
+  free_claws_mail_env(env);
+
+ error:
+  osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(error));
+  return NULL;
+}
+
+/* Here we actually tell opensync which sinks are available. */
+static osync_bool discover(void *userdata, OSyncPluginInfo *info, OSyncError **error)
+{
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, error);
+
+  ClawsMailEnv *env = (ClawsMailEnv*)userdata;
+
+  /* Report avaliable sinks */
+  GList *list = NULL;
+  for(list = env->sinks; list; list = list->next) {
+    ClawsMailSinkEnv *sinkenv = list->data;
+    osync_objtype_sink_set_available(sinkenv->sink, TRUE);
+  }
+
+  OSyncVersion *version = osync_version_new(error);
+  osync_version_set_plugin(version, "claws-mail-sync");
+  //osync_version_set_version(version, "version");
+  //osync_version_set_modelversion(version, "version");
+  //osync_version_set_firmwareversion(version, "firmwareversion");
+  //osync_version_set_softwareversion(version, "softwareversion");
+  //osync_version_set_hardwareversion(version, "hardwareversion");
+  osync_plugin_info_set_version(info, version);
+  osync_version_unref(version);
+
+  osync_trace(TRACE_EXIT, "%s", __func__);
+  return TRUE;
+}
+
+osync_bool get_sync_info(OSyncPluginEnv *env, OSyncError **error)
+{
+  OSyncPlugin *plugin = osync_plugin_new(error);
+  if (!plugin)
+    goto error;
+
+  osync_plugin_set_name(plugin, "claws-mail-sync");
+  osync_plugin_set_longname(plugin, "Claws Mail -- it bites!");
+  osync_plugin_set_description(plugin,
+			       "Synchronize with the addressbook "
+			       "of the Claws Mail email client.");
+
+  osync_plugin_set_initialize(plugin, initialize);
+  osync_plugin_set_finalize(plugin, finalize);
+  osync_plugin_set_discover(plugin, discover);
+
+  osync_plugin_env_register_plugin(env, plugin);
+  osync_plugin_unref(plugin);
+
+  return TRUE;
+  
+ error:
+  osync_trace(TRACE_ERROR, "Unable to register: %s", osync_error_print(error));
+  osync_error_unref(error);
+  return FALSE;
+}
+
+int get_version(void)
+{
+  return 1;
 }

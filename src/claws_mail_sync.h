@@ -21,13 +21,18 @@
 #include <glib.h>
 
 #include <opensync/opensync.h>
+#include <opensync/opensync-helper.h>
 
-typedef struct
-{
-	OSyncMember    *member;
+typedef struct {
+	OSyncMember *member;
 	OSyncHashTable *hashtable;
+	GList *sinks;
+} ClawsMailEnv;
 
-}
-ClawsMailSyncEnv;
+typedef struct {
+	OSyncObjTypeSink *sink;
+	OSyncObjFormat *objformat;
+	OSyncHashTable *hashtable;
+} ClawsMailSinkEnv;
 
 #endif /*CLAWSMAILSYNC_H*/
