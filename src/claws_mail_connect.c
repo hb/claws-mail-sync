@@ -33,7 +33,7 @@ static char*    sock_get_next_line(int);
 
 static int uxsock = -1;
 
-/* Connect to Claws-Mail unix domain socket.
+/* Connect to Claws Mail unix domain socket.
  * Returns TRUE if successful, FALSE on error. */
 gboolean claws_mail_connect(void)
 {
@@ -46,7 +46,7 @@ gboolean claws_mail_connect(void)
 
 	uxsock = socket(PF_UNIX, SOCK_STREAM, 0);
 	if(uxsock < 0) {
-		osync_trace(TRACE_INTERNAL,"Claws-Mail connect error: Could not open socket.");
+		osync_trace(TRACE_INTERNAL,"Claws Mail connect error: Could not open socket.");
 		return FALSE;
 	}
 
@@ -57,8 +57,8 @@ gboolean claws_mail_connect(void)
 	if(connect(uxsock,(struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		close(uxsock);
 		uxsock = -1;
-		osync_trace(TRACE_INTERNAL,"Claws-Mail connect error: Could not connect to "
-		            "Claws-Mail. Check that Claws-Mail is running and the OpenSync plugin is "
+		osync_trace(TRACE_INTERNAL,"Claws Mail connect error: Could not connect to "
+		            "Claws Mail. Check that Claws Mail is running and the OpenSync plugin is "
 		            "loaded.");
 		return FALSE;
 	}

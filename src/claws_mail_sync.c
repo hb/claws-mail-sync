@@ -220,6 +220,8 @@ static osync_bool discover(void *userdata, OSyncPluginInfo *info, OSyncError **e
 
 osync_bool get_sync_info(OSyncPluginEnv *env, OSyncError **error)
 {
+  osync_trace(TRACE_ENTRY, "%s(%p)", __func__, error);
+
   OSyncPlugin *plugin = osync_plugin_new(error);
   if (!plugin)
     goto error;
@@ -237,10 +239,12 @@ osync_bool get_sync_info(OSyncPluginEnv *env, OSyncError **error)
   osync_plugin_env_register_plugin(env, plugin);
   osync_plugin_unref(plugin);
 
+  osync_trace(TRACE_EXIT, "%s", __func__);
+
   return TRUE;
   
  error:
-  osync_trace(TRACE_ERROR, "Unable to register: %s", osync_error_print(error));
+  osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(error));
   osync_error_unref(error);
   return FALSE;
 }
