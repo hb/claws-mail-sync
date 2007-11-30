@@ -1,4 +1,4 @@
-/* Claws-Mail plugin for OpenSync
+/* Claws Mail plugin for OpenSync
  * Copyright (C) 2007 Holger Berndt
  *
  * This program is free software; you can redistribute it and/or modify
@@ -71,8 +71,8 @@ gboolean claws_mail_connect(void)
 void claws_mail_disconnect(void)
 {
 	osync_trace(TRACE_ENTRY, "%s", __func__);
-	if(!sock_send(uxsock, ":done:"))
-		osync_trace(TRACE_INTERNAL,"failed to send :done:");
+	if(!sock_send(uxsock, ":finished:"))
+		osync_trace(TRACE_INTERNAL,"failed to send :finished:");
 	if(uxsock != -1) {
 		close(uxsock);
 		uxsock = -1;
@@ -87,12 +87,7 @@ static char* get_socket_name(void)
 	if(filename == NULL) {
 		filename = g_strdup_printf("%s%cclaws-mail-opensync-%d",
 		                           g_get_tmp_dir(), G_DIR_SEPARATOR,
-#if HAVE_GETUID
-		                           getuid()
-#else
-		                           0
-#endif
-		                          );
+		                           getuid());
 	}
 
 	return filename;

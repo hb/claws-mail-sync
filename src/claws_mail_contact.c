@@ -1,4 +1,4 @@
-/* Claws-Mail plugin for OpenSync
+/* Claws Mail plugin for OpenSync
  * Copyright (C) 2007 Holger Berndt
  *
  * This program is free software; you can redistribute it and/or modify
@@ -48,7 +48,7 @@ static gchar* get_uid_from_vcard(gchar *vcard)
 
 	start = strstr(vcard, VCARD_UID_STR);
 	if (!start) {
-		osync_trace(TRACE_INTERNAL, "Claws-Mail: Contact doesn't have a UID.");
+		osync_trace(TRACE_INTERNAL, "Claws Mail: Contact doesn't have a UID.");
 		return g_strdup("123");
 	}
 
