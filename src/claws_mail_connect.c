@@ -169,25 +169,27 @@ gchar* claws_mail_connect_get_next_contact(void)
 	}
 
 	vcard = g_strdup("");
-	do {
-		line = sock_get_next_line(uxsock);
+	while(!complete && ((line = sock_get_next_line(uxsock)) != NULL)) {
+	  osync_trace(TRACE_INTERNAL,"On line: '%s'", line);
+	  if(g_str_has_prefix(line,":done:")) {
+	    is_receiving = FALSE;
+	    g_free(vcard);
+	    vcard = NULL;
+	    break;
+	  }
+	  else if(g_str_has_prefix(line,":start_contact:")) {
+	    continue;
+	  }
+	  else if(g_str_has_prefix(line,":end_contact:")) {
+	    complete = TRUE;
+	    continue;
+	  }
 
-		if(line) {
-
-			if(g_str_has_prefix(line,":contacts_done:")) {
-				is_receiving = FALSE;
-				g_free(vcard);
-				return NULL;
-			}
-
-			vcard_tmp = vcard;
-			vcard = g_strconcat(vcard_tmp,line,NULL);
-			g_free(vcard_tmp);
-
-			if(g_str_has_prefix(line, "END:VCARD"))
-				complete = TRUE;
-		}
-	} while(!complete && line);
+	  /* append line to vcard string */
+	  vcard_tmp = vcard;
+	  vcard = g_strconcat(vcard_tmp,line,NULL);
+	  g_free(vcard_tmp);
+	};
 
 	osync_trace(TRACE_EXIT, "%s(%s)", __func__,vcard);
 
