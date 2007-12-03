@@ -229,12 +229,6 @@ gboolean claws_mail_connect_modify_contact(gchar *uid)
 	return retVal;
 }
 
-gboolean claws_mail_connect_add_contact(gchar *vcard)
-{
-	// TODO: Implement this
-	return TRUE;
-}
-
 gboolean claws_mail_connect_delete_contact(gchar *uid)
 {
 	gchar *msg;
@@ -256,4 +250,28 @@ gboolean claws_mail_connect_delete_contact(gchar *uid)
 		retVal = TRUE;
 
 	return retVal;
+}
+
+gchar* claws_mail_connect_add_contact(gchar *vcard)
+{
+	gchar *msg;
+	gboolean retVal;
+	char *line;
+
+	if (!sock_send(uxsock, ":add_contact:\n"))
+		return NULL;
+
+	if (!sock_send(uxsock, ":start_contact:\n"))
+		return NULL;
+
+	msg = g_strdup_printf("%s\n", vcard);
+	retVal = sock_send(uxsock, msg);
+	g_free(msg);
+	if (!retVal)
+		return NULL;
+
+	if (!sock_send(uxsock, ":end_contact:\n"))
+		return NULL;
+
+	return claws_mail_connect_get_next_contact();
 }

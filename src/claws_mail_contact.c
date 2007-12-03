@@ -153,7 +153,7 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 	uids = osync_hashtable_get_deleted(sinkenv->hashtable);
 
 	for (ii=0; uids[ii]; ii++) {
-	  OSyncData *odata;
+		OSyncData *odata;
 		OSyncChange *change = osync_change_new(&error);
 		if (!change) {
 			g_free(uids[ii]);
@@ -197,6 +197,7 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 {
 	gboolean retVal;
 	gchar *vcard;
+	gchar *added_vcard;
 	char *uid;
 	char *hash;
 	OSyncError *error = NULL;
@@ -221,24 +222,24 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 		break;
 
 	case OSYNC_CHANGE_TYPE_ADDED:
-		//Add the change
-		// TODO: Implement adding here
-		if (0) {
+		added_vcard = claws_mail_connect_add_contact(vcard);
+		if (!added_vcard) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write contact.");
 			goto error;
 		}
 
-		uid = get_uid_from_vcard(vcard);
-
-		osync_trace(TRACE_INTERNAL, "Want to add: '%s'", uid);
-
+		uid = get_uid_from_vcard(added_vcard);
 		osync_change_set_uid(change, uid);
 		g_free(uid);
 
 		/* generate and set hash of entry */
-		hash = contact_hash(vcard);
+		hash = contact_hash(added_vcard);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
+
+		/* the data changed too (UID field) */
+		osync_data_set_data(osync_change_get_data(change),
+				added_vcard, strlen(added_vcard));
 
 		break;
 
