@@ -127,7 +127,7 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 
 		g_free(hash);
 
-		odata = osync_data_new(data, 0, sinkenv->objformat, &error);
+		odata = osync_data_new(data, strlen(data), sinkenv->objformat, &error);
 		if (!odata) {
 			osync_change_unref(change);
 			osync_context_report_osyncwarning(ctx, error);

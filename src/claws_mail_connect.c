@@ -170,7 +170,6 @@ gchar* claws_mail_connect_get_next_contact(void)
 
 	vcard = g_strdup("");
 	while(!complete && ((line = sock_get_next_line(uxsock)) != NULL)) {
-	  osync_trace(TRACE_INTERNAL,"On line: '%s'", line);
 	  if(g_str_has_prefix(line,":done:")) {
 	    is_receiving = FALSE;
 	    g_free(vcard);
