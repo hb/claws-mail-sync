@@ -25,11 +25,10 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-static char*    get_socket_name(void);
+static char* get_socket_name(void);
 static gboolean sock_send(int, char*);
-static int      sock_write_all(int, const char*, int);
-static char*    sock_get_next_line(int);
-
+static int sock_write_all(int, const char*, int);
+static char* sock_get_next_line(int);
 
 static int uxsock = -1;
 
@@ -45,8 +44,9 @@ gboolean claws_mail_connect(void)
 	path = get_socket_name();
 
 	uxsock = socket(PF_UNIX, SOCK_STREAM, 0);
-	if(uxsock < 0) {
-		osync_trace(TRACE_INTERNAL,"Claws Mail connect error: Could not open socket.");
+	if (uxsock < 0) {
+		osync_trace(TRACE_INTERNAL,
+				"Claws Mail connect error: Could not open socket.");
 		return FALSE;
 	}
 
@@ -58,8 +58,8 @@ gboolean claws_mail_connect(void)
 		close(uxsock);
 		uxsock = -1;
 		osync_trace(TRACE_INTERNAL,"Claws Mail connect error: Could not connect to "
-		            "Claws Mail. Check that Claws Mail is running and the OpenSync plugin is "
-		            "loaded.");
+		"Claws Mail. Check that Claws Mail is running and the OpenSync plugin is "
+		"loaded.");
 		return FALSE;
 	}
 
@@ -71,9 +71,9 @@ gboolean claws_mail_connect(void)
 void claws_mail_disconnect(void)
 {
 	osync_trace(TRACE_ENTRY, "%s", __func__);
-	if(!sock_send(uxsock, ":finished:"))
-		osync_trace(TRACE_INTERNAL,"failed to send :finished:");
-	if(uxsock != -1) {
+	if (!sock_send(uxsock, ":finished:"))
+		osync_trace(TRACE_INTERNAL, "failed to send :finished:");
+	if (uxsock != -1) {
 		close(uxsock);
 		uxsock = -1;
 	}
@@ -84,10 +84,9 @@ static char* get_socket_name(void)
 {
 	static char *filename = NULL;
 
-	if(filename == NULL) {
-		filename = g_strdup_printf("%s%cclaws-mail-opensync-%d",
-		                           g_get_tmp_dir(), G_DIR_SEPARATOR,
-		                           getuid());
+	if (filename == NULL) {
+		filename = g_strdup_printf("%s%cclaws-mail-opensync-%d", g_get_tmp_dir(),
+				G_DIR_SEPARATOR, getuid());
 	}
 
 	return filename;
@@ -97,7 +96,7 @@ static int sock_write_all(int fd, const char *buf, int len)
 {
 	int n, wrlen = 0;
 
-	while(len) {
+	while (len) {
 		n = write(fd, buf, len);
 		if (n <= 0) {
 			g_print("Error writing on fd%d: %s\n", fd, strerror(errno));
@@ -116,7 +115,7 @@ static gboolean sock_send(int fd, char *msg)
 
 	bytes_to_write = strlen(msg);
 	bytes_written = sock_write_all(fd, msg, bytes_to_write);
-	if(bytes_written != bytes_to_write)
+	if (bytes_written != bytes_to_write)
 		return FALSE;
 	else
 		return TRUE;
@@ -132,21 +131,38 @@ static char* sock_get_next_line(int fd)
 	len = BUFFSIZE-1;
 	bp = buf;
 	do {
-		if((n = recv(fd, bp, len, MSG_PEEK)) <= 0)
+		if ((n = recv(fd, bp, len, MSG_PEEK)) <= 0)
 			return NULL;
 		else {
-			if((newline = memchr(bp, '\n', n)) != NULL)
+			if ((newline = memchr(bp, '\n', n)) != NULL)
 				n = newline - bp + 1;
-			if((n = read(fd, bp, n)) < 0)
+			if ((n = read(fd, bp, n)) < 0)
 				return NULL;
 			bp += n;
 			len -= n;
 		}
-	} while(!newline && len);
-	nl = strchr(buf,'\n');
-	if(nl)
+	} while (!newline && len);
+	nl = strchr(buf, '\n');
+	if (nl)
 		*(nl+1) = '\0';
 	return buf;
+}
+
+gchar* claws_mail_connect_get_contacts(void)
+{
+	gchar *vcard;
+	static gboolean is_receiving = FALSE;
+
+	if (!is_receiving) {
+		if (!sock_send(uxsock, ":request_contacts:\n"))
+			return NULL;
+		is_receiving = TRUE;
+	}
+
+	vcard = claws_mail_connect_get_next_contact();
+	if (!vcard)
+		is_receiving = FALSE;
+	return vcard;
 }
 
 /* Returns the next contact in a freshly allocated string
@@ -154,7 +170,6 @@ static char* sock_get_next_line(int fd)
  * contacts exist. */
 gchar* claws_mail_connect_get_next_contact(void)
 {
-	static gboolean is_receiving = FALSE;
 	char *line;
 	char *vcard;
 	char *vcard_tmp;
@@ -162,35 +177,83 @@ gchar* claws_mail_connect_get_next_contact(void)
 
 	osync_trace(TRACE_ENTRY, "%s", __func__);
 
-	if(!is_receiving) {
-		if(!sock_send(uxsock, ":request_contacts:\n"))
-			return NULL;
-		is_receiving = TRUE;
-	}
-
 	vcard = g_strdup("");
-	while(!complete && ((line = sock_get_next_line(uxsock)) != NULL)) {
-	  if(g_str_has_prefix(line,":done:")) {
-	    is_receiving = FALSE;
-	    g_free(vcard);
-	    vcard = NULL;
-	    break;
-	  }
-	  else if(g_str_has_prefix(line,":start_contact:")) {
-	    continue;
-	  }
-	  else if(g_str_has_prefix(line,":end_contact:")) {
-	    complete = TRUE;
-	    continue;
-	  }
+	while (!complete && ((line = sock_get_next_line(uxsock)) != NULL)) {
+		if (g_str_has_prefix(line, ":done:")) {
+			g_free(vcard);
+			vcard = NULL;
+			break;
+		}
+		else if (g_str_has_prefix(line, ":start_contact:")) {
+			continue;
+		}
+		else if (g_str_has_prefix(line, ":end_contact:")) {
+			complete = TRUE;
+			continue;
+		}
 
-	  /* append line to vcard string */
-	  vcard_tmp = vcard;
-	  vcard = g_strconcat(vcard_tmp,line,NULL);
-	  g_free(vcard_tmp);
+		/* append line to vcard string */
+		vcard_tmp = vcard;
+		vcard = g_strconcat(vcard_tmp, line, NULL);
+		g_free(vcard_tmp);
 	};
 
-	osync_trace(TRACE_EXIT, "%s(%s)", __func__,vcard);
+	osync_trace(TRACE_EXIT, "%s(%s)", __func__, vcard);
 
 	return vcard;
+}
+
+gboolean claws_mail_connect_modify_contact(gchar *uid)
+{
+	gchar *msg;
+	gboolean retVal;
+	char *line;
+
+	if (!sock_send(uxsock, ":modify_contact:\n"))
+		return FALSE;
+
+	msg = g_strdup_printf("%s\n", uid);
+	retVal = sock_send(uxsock, msg);
+	g_free(msg);
+	if (!retVal)
+		return FALSE;
+
+	if (!sock_send(uxsock, ":done:\n"))
+		return FALSE;
+
+	line = sock_get_next_line(uxsock);
+	retVal = FALSE;
+	if (line && g_str_has_prefix(line, ":ok:"))
+		retVal = TRUE;
+
+	return retVal;
+}
+
+gboolean claws_mail_connect_add_contact(gchar *vcard)
+{
+	// TODO: Implement this
+	return TRUE;
+}
+
+gboolean claws_mail_connect_delete_contact(gchar *uid)
+{
+	gchar *msg;
+	gboolean retVal;
+	char *line;
+
+	if (!sock_send(uxsock, ":delete_contact:\n"))
+		return FALSE;
+
+	msg = g_strdup_printf("%s\n", uid);
+	retVal = sock_send(uxsock, msg);
+	g_free(msg);
+	if (!retVal)
+		return FALSE;
+
+	line = sock_get_next_line(uxsock);
+	retVal = FALSE;
+	if (line && g_str_has_prefix(line, ":ok:"))
+		retVal = TRUE;
+
+	return retVal;
 }

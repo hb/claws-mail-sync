@@ -83,7 +83,7 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 	}
 
 	/* While getting all contacts, one at a time */
-	while ((vcard = claws_mail_connect_get_next_contact()) != NULL) {
+	while ((vcard = claws_mail_connect_get_contacts()) != NULL) {
 		gchar *uid;
 		gchar *hash;
 		char *data;
@@ -195,6 +195,7 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 		OSyncContext *ctx, OSyncChange *change)
 {
+	gboolean retVal;
 	gchar *vcard;
 	char *uid;
 	char *hash;
@@ -207,18 +208,18 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 	osync_data_get_data(osync_change_get_data(change), &vcard, NULL);
 
 	switch (osync_change_get_changetype(change)) {
+
 	case OSYNC_CHANGE_TYPE_DELETED:
-		//Delete the change
-		// TODO: implement deleting here
 
 		uid = get_uid_from_vcard(vcard);
-		osync_trace(TRACE_INTERNAL, "Want to delete: '%s'", uid);
-
-		if (0) {
+		retVal = claws_mail_connect_delete_contact(vcard);
+		g_free(uid);
+		if (!retVal) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to delete contact.");
 			goto error;
 		}
 		break;
+
 	case OSYNC_CHANGE_TYPE_ADDED:
 		//Add the change
 		// TODO: Implement adding here
@@ -242,21 +243,17 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 		break;
 
 	case OSYNC_CHANGE_TYPE_MODIFIED:
-		//Modify the change
-		// TODO: Implement modifying here
 
-		if (0) {
+		uid = get_uid_from_vcard(vcard);
+		retVal = claws_mail_connect_modify_contact(uid);
+		g_free(uid);
+		if (!retVal) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to modify contact.");
 			goto error;
 		}
-
-		uid = get_uid_from_vcard(vcard);
-		osync_trace(TRACE_INTERNAL, "Want to modify: '%s'", uid);
-
 		hash = contact_hash(vcard);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
-
 		break;
 
 	default:
