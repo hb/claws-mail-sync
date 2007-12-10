@@ -184,6 +184,11 @@ gchar* claws_mail_connect_get_next_contact(void)
 			vcard = NULL;
 			break;
 		}
+		else if(g_str_has_prefix(line, ":failure:")) {
+			g_free(vcard);
+			vcard = NULL;
+			break;
+		}
 		else if (g_str_has_prefix(line, ":start_contact:")) {
 			continue;
 		}
@@ -198,7 +203,7 @@ gchar* claws_mail_connect_get_next_contact(void)
 		g_free(vcard_tmp);
 	};
 
-	osync_trace(TRACE_EXIT, "%s(%s)", __func__, vcard);
+	osync_trace(TRACE_EXIT, "%s(%s)", __func__, vcard?vcard:"");
 
 	return vcard;
 }
