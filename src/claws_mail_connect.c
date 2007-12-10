@@ -47,13 +47,14 @@ gboolean claws_mail_connect(void)
 	if (uxsock < 0) {
 		osync_trace(TRACE_INTERNAL,
 				"Claws Mail connect error: Could not open socket.");
+		g_free(path);
 		return FALSE;
 	}
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
-
+	g_free(path);
 	if(connect(uxsock,(struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		close(uxsock);
 		uxsock = -1;
