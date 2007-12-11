@@ -54,7 +54,8 @@ static gchar* get_uid_from_vcard(gchar *vcard)
 
 	start += strlen(VCARD_UID_STR);
 	ii = 0;
-	while (start && *start && (*start != '\n')&& (ii < BUFFSIZE-1))
+	while (start && *start && (*start != '\n') &&
+				 (*start != '\r') && (ii < BUFFSIZE-1))
 		uid[ii++] = *start++;
 	uid[ii] = '\0';
 
@@ -62,7 +63,7 @@ static gchar* get_uid_from_vcard(gchar *vcard)
 }
 
 void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
-		OSyncContext *ctx)
+																		OSyncContext *ctx)
 {
 	int ii;
 	char **uids;
@@ -202,6 +203,9 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 	char *hash;
 	OSyncError *error = NULL;
 	ClawsMailEnv *env = (ClawsMailEnv*)userdata;
+
+	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p, %p)",
+							__func__, userdata, info, ctx, change);
 
 	OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
 	ClawsMailSinkEnv *sinkenv = osync_objtype_sink_get_userdata(sink);
