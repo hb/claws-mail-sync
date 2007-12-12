@@ -63,8 +63,6 @@ static void connect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 	  return;
 	}
 
-	osync_trace(TRACE_INTERNAL, "blubb4");
-
 	// load hashtable
 	tablepath = g_strdup_printf("%s/hashtable.db",
 			osync_plugin_info_get_configdir(info));
@@ -72,17 +70,13 @@ static void connect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 			osync_objtype_sink_get_name(sink), &error);
 	g_free(tablepath);
 
-	osync_trace(TRACE_INTERNAL, "blubb3");
-
 	if (!sinkenv->hashtable)
 		goto error;
 
 	/* TODO: anchor stuff */
 	//	osync_objtype_sink_set_slowsync(sink, TRUE);
 
-	osync_trace(TRACE_INTERNAL, "blubb1");
 	osync_context_report_success(ctx);
-	osync_trace(TRACE_INTERNAL, "blubb2");
 
 	osync_trace(TRACE_EXIT, "hhb: %s", __func__);
 	return;
