@@ -204,7 +204,7 @@ gchar* claws_mail_connect_get_next_contact(void)
 		g_free(vcard_tmp);
 	};
 
-	osync_trace(TRACE_EXIT, "%s(%s)", __func__, vcard?vcard:"");
+	osync_trace(TRACE_EXIT, "%s", __func__);
 
 	return vcard;
 }
