@@ -31,7 +31,7 @@ static void free_claws_mail_env(ClawsMailEnv*);
 
 static void free_claws_mail_env(ClawsMailEnv *env)
 {
-	osync_trace(TRACE_ENTRY, "hhb: %s(%p)", __func__, env);
+	osync_trace(TRACE_ENTRY, "%s(%p)", __func__, env);
 	while (env->sinks) {
 		ClawsMailSinkEnv *sinkenv = env->sinks->data;
 
@@ -41,14 +41,14 @@ static void free_claws_mail_env(ClawsMailEnv *env)
 		env->sinks = g_list_remove(env->sinks, sinkenv);
 	}
 	g_free(env);
-	osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+	osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
 static void connect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 {
 	char *tablepath;
 
-	osync_trace(TRACE_ENTRY, "hhb: %s(%p, %p, %p)", __func__, userdata, info, ctx);
+	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
 	ClawsMailEnv *env = (ClawsMailEnv*) userdata;
 	OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
@@ -78,24 +78,24 @@ static void connect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 
 	osync_context_report_success(ctx);
 
-	osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+	osync_trace(TRACE_EXIT, "%s", __func__);
 	return;
 
 	error:
 
 	osync_context_report_osyncerror(ctx, error);
-	osync_trace(TRACE_EXIT_ERROR, "hhb: %s: %s", __func__, osync_error_print(&error));
+	osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(&error));
 	osync_error_unref(&error);
 }
 
 static void sync_done(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
 {
-  osync_trace(TRACE_ENTRY, "hhb: %s(%p, %p, %p)", __func__, userdata, info, ctx);
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
   // TODO: Anchor stuff
 
   osync_context_report_success(ctx);
-  osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+  osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
 static void disconnect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
@@ -103,12 +103,11 @@ static void disconnect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
   OSyncObjTypeSink *sink;
   ClawsMailSinkEnv *sinkenv;
 
-  osync_trace(TRACE_ENTRY, "hhb: %s(%p, %p, %p)", __func__, userdata, info, ctx);
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
   sink = osync_plugin_info_get_sink(info);
   sinkenv = osync_objtype_sink_get_userdata(sink);
 
-  /* Close all stuff you need to close */
   claws_mail_disconnect();
 
   /* Close the hashtable */
@@ -116,17 +115,17 @@ static void disconnect(void *userdata, OSyncPluginInfo *info, OSyncContext *ctx)
   sinkenv->hashtable = NULL;
 
   osync_context_report_success(ctx);
-  osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+  osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
 static void finalize(void *userdata)
 {
   ClawsMailEnv *env = (ClawsMailEnv*)userdata;
-  osync_trace(TRACE_ENTRY, "hhb: %s(%p)", __func__, userdata);
+  osync_trace(TRACE_ENTRY, "%s(%p)", __func__, userdata);
 
   /* Free all stuff */
   free_claws_mail_env(env);
-  osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+  osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
 static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info, OSyncError **error)
@@ -134,7 +133,7 @@ static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info, OSyncError *
   const char *configdata = NULL;
   ClawsMailEnv *env;
 
-  osync_trace(TRACE_ENTRY, "hhb: %s(%p, %p, %p)", __func__, plugin, info, error);
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, plugin, info, error);
 
   env = osync_try_malloc0(sizeof(ClawsMailEnv), error);
   if (!env)
@@ -181,7 +180,7 @@ static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info, OSyncError *
 
   env->sinks = g_list_append(env->sinks, sinkenv);
 
-  osync_trace(TRACE_EXIT, "hhb: %s: %p", __func__, env);
+  osync_trace(TRACE_EXIT, "%s: %p", __func__, env);
   return (void *) env;
   
  error_free_env:
@@ -189,14 +188,14 @@ static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info, OSyncError *
   free_claws_mail_env(env);
 
  error:
-  osync_trace(TRACE_EXIT_ERROR, "hhb: %s: %s", __func__, osync_error_print(error));
+  osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(error));
   return NULL;
 }
 
 /* Here we actually tell opensync which sinks are available. */
 static osync_bool discover(void *userdata, OSyncPluginInfo *info, OSyncError **error)
 {
-  osync_trace(TRACE_ENTRY, "hhb: %s(%p, %p, %p)", __func__, userdata, info, error);
+  osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, error);
 
   ClawsMailEnv *env = (ClawsMailEnv*)userdata;
 
@@ -217,13 +216,13 @@ static osync_bool discover(void *userdata, OSyncPluginInfo *info, OSyncError **e
   osync_plugin_info_set_version(info, version);
   osync_version_unref(version);
 
-  osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+  osync_trace(TRACE_EXIT, "%s", __func__);
   return TRUE;
 }
 
 osync_bool get_sync_info(OSyncPluginEnv *env, OSyncError **error)
 {
-  osync_trace(TRACE_ENTRY, "hhb: %s(%p)", __func__, error);
+  osync_trace(TRACE_ENTRY, "%s(%p)", __func__, error);
 
   OSyncPlugin *plugin = osync_plugin_new(error);
   if (!plugin)
@@ -242,12 +241,12 @@ osync_bool get_sync_info(OSyncPluginEnv *env, OSyncError **error)
   osync_plugin_env_register_plugin(env, plugin);
   osync_plugin_unref(plugin);
 
-  osync_trace(TRACE_EXIT, "hhb: %s", __func__);
+  osync_trace(TRACE_EXIT, "%s", __func__);
 
   return TRUE;
   
  error:
-  osync_trace(TRACE_EXIT_ERROR, "hhb: %s: %s", __func__, osync_error_print(error));
+  osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(error));
   osync_error_unref(error);
   return FALSE;
 }
