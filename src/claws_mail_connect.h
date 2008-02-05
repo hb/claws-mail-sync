@@ -28,7 +28,7 @@ void     claws_mail_disconnect(void);
 gchar*   claws_mail_connect_get_contacts(void);
 gchar*   claws_mail_connect_get_next_contact(void);
 
-gboolean claws_mail_connect_modify_contact(gchar*);
+gboolean claws_mail_connect_modify_contact(gchar*,gchar*);
 gboolean claws_mail_connect_delete_contact(gchar*);
 gchar* claws_mail_connect_add_contact(gchar*);
 

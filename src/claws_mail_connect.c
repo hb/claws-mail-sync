@@ -209,7 +209,8 @@ gchar* claws_mail_connect_get_next_contact(void)
 	return vcard;
 }
 
-gboolean claws_mail_connect_modify_contact(gchar *uid)
+gboolean claws_mail_connect_modify_contact(gchar *uid,
+																					 gchar *vcard)
 {
 	gchar *msg;
 	gboolean retVal;
@@ -222,6 +223,10 @@ gboolean claws_mail_connect_modify_contact(gchar *uid)
 	retVal = sock_send(uxsock, msg);
 	g_free(msg);
 	if (!retVal)
+		return FALSE;
+
+	retVal = sock_send(uxsock, vcard);
+	if(!retVal)
 		return FALSE;
 
 	if (!sock_send(uxsock, ":done:\n"))

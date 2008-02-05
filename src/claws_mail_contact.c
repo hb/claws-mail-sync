@@ -48,7 +48,8 @@ static gchar* get_uid_from_vcard(gchar *vcard)
 
 	start = strstr(vcard, VCARD_UID_STR);
 	if (!start) {
-		osync_trace(TRACE_INTERNAL, "Claws Mail: Contact doesn't have a UID.");
+		osync_trace(TRACE_INTERNAL, "Claws Mail: Contact doesn't have a UID. '%s'",
+								vcard);
 		return g_strdup("123");
 	}
 
@@ -248,10 +249,8 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 		break;
 
 	case OSYNC_CHANGE_TYPE_MODIFIED:
-
-		uid = get_uid_from_vcard(vcard);
-		retVal = claws_mail_connect_modify_contact(uid);
-		g_free(uid);
+		uid = osync_change_get_uid(change);
+		retVal = claws_mail_connect_modify_contact(uid,vcard);
 		if (!retVal) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to modify contact.");
 			goto error;
