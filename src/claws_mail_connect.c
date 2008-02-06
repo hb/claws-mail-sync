@@ -202,7 +202,7 @@ gchar* claws_mail_connect_get_next_contact(void)
 		vcard_tmp = vcard;
 		vcard = g_strconcat(vcard_tmp, line, NULL);
 		g_free(vcard_tmp);
-	};
+	}
 
 	osync_trace(TRACE_EXIT, "%s", __func__);
 
@@ -285,4 +285,139 @@ gchar* claws_mail_connect_add_contact(gchar *vcard)
 		return NULL;
 
 	return claws_mail_connect_get_next_contact();
+}
+
+gchar* claws_mail_connect_get_events(void)
+{
+	gchar *vevent;
+	static gboolean is_receiving = FALSE;
+
+	if (!is_receiving) {
+		if (!sock_send(uxsock, ":request_events:\n"))
+			return NULL;
+		is_receiving = TRUE;
+	}
+
+	vevent = claws_mail_connect_get_next_event();
+	if(!vevent)
+		is_receiving = FALSE;
+	return vevent;
+}
+
+gchar* claws_mail_connect_get_next_event(void)
+{
+	char *line;
+	char *vevent;
+	char *vevent_tmp;
+	gboolean complete = FALSE;
+
+	osync_trace(TRACE_ENTRY, "%s", __func__);
+
+	vevent = g_strdup("");
+	while(!complete && ((line = sock_get_next_line(uxsock)) != NULL)) {
+		if (g_str_has_prefix(line, ":done:")) {
+			g_free(vevent);
+			vevent = NULL;
+			break;
+		}
+		else if(g_str_has_prefix(line, ":failure:")) {
+			g_free(vevent);
+			vevent = NULL;
+			break;
+		}
+		else if (g_str_has_prefix(line, ":start_event:")) {
+			continue;
+		}
+		else if (g_str_has_prefix(line, ":end_event:")) {
+			complete = TRUE;
+			continue;
+		}
+
+		/* append line to vcard string */
+		vevent_tmp = vevent;
+		vevent = g_strconcat(vevent_tmp, line, NULL);
+		g_free(vevent_tmp);
+	}
+
+	osync_trace(TRACE_EXIT, "%s", __func__);
+
+	return vevent;
+}
+
+gboolean claws_mail_connect_modify_event(gchar *uid,
+																				 gchar *vevent)
+{
+	gchar *msg;
+	gboolean retVal;
+	char *line;
+	
+	if (!sock_send(uxsock, ":modify_event:\n"))
+		return FALSE;
+
+	msg = g_strdup_printf("%s\n", uid);
+	retVal = sock_send(uxsock, msg);
+	g_free(msg);
+	if (!retVal)
+		return FALSE;
+
+	retVal = sock_send(uxsock, vevent);
+	if(!retVal)
+		return FALSE;
+
+	if (!sock_send(uxsock, ":done:\n"))
+		return FALSE;
+
+	line = sock_get_next_line(uxsock);
+	retVal = FALSE;
+	if (line && g_str_has_prefix(line, ":ok:"))
+		retVal = TRUE;
+
+	return retVal;
+}
+
+gboolean claws_mail_connect_delete_event(gchar *uid)
+{
+	gchar *msg;
+	gboolean retVal;
+	char *line;
+
+	if (!sock_send(uxsock, ":delete_event:\n"))
+		return FALSE;
+
+	msg = g_strdup_printf("%s\n", uid);
+	retVal = sock_send(uxsock, msg);
+	g_free(msg);
+	if (!retVal)
+		return FALSE;
+
+	line = sock_get_next_line(uxsock);
+	retVal = FALSE;
+	if (line && g_str_has_prefix(line, ":ok:"))
+		retVal = TRUE;
+
+	return retVal;
+}
+
+gchar* claws_mail_connect_add_event(gchar *vevent)
+{
+	gchar *msg;
+	gboolean retVal;
+	char *line;
+	
+	if(!sock_send(uxsock, ":add_event:\n"))
+		return NULL;
+	
+	if (!sock_send(uxsock, ":start_event:\n"))
+		return NULL;
+
+	msg = g_strdup_printf("%s\n", vevent);
+	retVal = sock_send(uxsock, msg);
+	g_free(msg);
+	if (!retVal)
+		return NULL;
+
+	if (!sock_send(uxsock, ":end_event:\n"))
+		return NULL;
+	
+	return claws_mail_connect_get_next_event();
 }

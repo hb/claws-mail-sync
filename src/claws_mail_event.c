@@ -15,7 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "claws_mail_contact.h"
+#include "claws_mail_event.h"
 #include "claws_mail_sync.h"
 #include "claws_mail_connect.h"
 
@@ -26,49 +26,17 @@
 #include <glib.h>
 #include <string.h>
 
-#define VCARD_UID_STR "\nUID:"
+#define VEVENT_UID_STR "\nUID:"
 
-static gchar* get_uid_from_vcard(gchar*);
-static gchar* contact_hash(gchar*);
+static gchar* event_hash(gchar*);
+static gchar* get_uid_from_event(gchar*);
 
-static gchar* contact_hash(gchar *vcard)
-{
-	guint ihash;
-	gchar *hash;
-	ihash = g_str_hash(vcard);
-	hash = g_strdup_printf("%u", ihash);
-	return hash;
-}
-
-static gchar* get_uid_from_vcard(gchar *vcard)
-{
-	gchar uid[BUFFSIZE];
-	gchar *start;
-	int ii;
-
-	start = strstr(vcard, VCARD_UID_STR);
-	if (!start) {
-		osync_trace(TRACE_INTERNAL, "Claws Mail: Contact doesn't have a UID. '%s'",
-								vcard);
-		return g_strdup("123");
-	}
-
-	start += strlen(VCARD_UID_STR);
-	ii = 0;
-	while (start && *start && (*start != '\n') &&
-				 (*start != '\r') && (ii < BUFFSIZE-1))
-		uid[ii++] = *start++;
-	uid[ii] = '\0';
-
-	return g_strdup(uid);
-}
-
-void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
-																		OSyncContext *ctx)
+void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
+																	OSyncContext *ctx)
 {
 	int ii;
 	char **uids;
-	char *vcard;
+	char *vevent;
 	ClawsMailEnv *env = (ClawsMailEnv*)userdata;
 
 	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
@@ -78,26 +46,26 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 
 	OSyncError *error = NULL;
 
-	/* check for slowsync and prepare the "contact" hashtable if needed */
-	if (osync_objtype_sink_get_slowsync(sinkenv->sink)) {
+	/* check for slowsync and prepare the "event" hashtable if needed */
+	if(osync_objtype_sink_get_slowsync(sinkenv->sink)) {
 		osync_trace(TRACE_INTERNAL, "Slow sync requested");
 		osync_hashtable_reset(sinkenv->hashtable);
 	}
 
-	/* While getting all contacts, one at a time */
-	while ((vcard = claws_mail_connect_get_contacts()) != NULL) {
+	/* While getting all events, one at a time */
+	while((vevent = claws_mail_connect_get_events()) != NULL) {
 		gchar *uid;
 		gchar *hash;
 		char *data;
 		OSyncChangeType changetype;
 		OSyncChange *change;
 		OSyncData *odata;
-
-		hash = contact_hash(vcard);
-		uid = get_uid_from_vcard(vcard);
+		
+		hash = event_hash(vevent);
+		uid = get_uid_from_event(vevent);
 
 		/* Now get the data of this change */
-		data = vcard;
+		data = vevent;
 
 		/* Report every entry .. every unreported entry got deleted. */
 		osync_hashtable_report(sinkenv->hashtable, uid);
@@ -116,7 +84,7 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 		/* Make the new change to report */
 		change = osync_change_new(&error);
 
-		if (!change) {
+		if(!change) {
 			osync_context_report_osyncwarning(ctx, error);
 			osync_error_unref(&error);
 			continue;
@@ -183,7 +151,8 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 		osync_context_report_change(ctx, change);
 
 		osync_hashtable_update_hash(sinkenv->hashtable,
-				osync_change_get_changetype(change), osync_change_get_uid(change), NULL);
+				osync_change_get_changetype(change), osync_change_get_uid(change),
+																NULL);
 
 		osync_change_unref(change);
 		g_free(uids[ii]);
@@ -194,12 +163,12 @@ void claws_mail_contact_get_changes(void *userdata, OSyncPluginInfo *info,
 	osync_trace(TRACE_EXIT, "%s", __func__);
 }
 
-void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
-		OSyncContext *ctx, OSyncChange *change)
+void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
+																		OSyncContext *ctx, OSyncChange *change)
 {
 	gboolean retVal;
-	gchar *vcard;
-	gchar *added_vcard;
+	gchar *vevent;
+	gchar *added_vevent;
 	char *uid;
 	char *hash;
 	OSyncError *error = NULL;
@@ -207,55 +176,57 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 
 	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p, %p)",
 							__func__, userdata, info, ctx, change);
-
+	
 	OSyncObjTypeSink *sink = osync_plugin_info_get_sink(info);
 	ClawsMailSinkEnv *sinkenv = osync_objtype_sink_get_userdata(sink);
-
-	osync_data_get_data(osync_change_get_data(change), &vcard, NULL);
+	
+	osync_data_get_data(osync_change_get_data(change), &vevent, NULL);
 
 	switch (osync_change_get_changetype(change)) {
-
+		
 	case OSYNC_CHANGE_TYPE_DELETED:
 
-		uid = get_uid_from_vcard(vcard);
-		retVal = claws_mail_connect_delete_contact(vcard);
+		uid = get_uid_from_event(vevent);
+		retVal = claws_mail_connect_delete_event(vevent);
 		g_free(uid);
-		if (!retVal) {
-			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to delete contact.");
+		if(!retVal) {
+			osync_error_set(&error, OSYNC_ERROR_GENERIC,
+											"Unable to delete event.");
 			goto error;
 		}
 		break;
 
 	case OSYNC_CHANGE_TYPE_ADDED:
-		added_vcard = claws_mail_connect_add_contact(vcard);
-		if (!added_vcard) {
-			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write contact.");
+		added_vevent = claws_mail_connect_add_event(vevent);
+		if (!added_vevent) {
+			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write event.");
 			goto error;
 		}
 
-		uid = get_uid_from_vcard(added_vcard);
+		uid = get_uid_from_event(added_vevent);
 		osync_change_set_uid(change, uid);
 		g_free(uid);
 
 		/* generate and set hash of entry */
-		hash = contact_hash(added_vcard);
+		hash = event_hash(added_vevent);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
-
+		
 		/* the data changed too (UID field) */
 		osync_data_set_data(osync_change_get_data(change),
-				added_vcard, strlen(added_vcard));
-
+												added_vevent, strlen(added_vevent));
+		
 		break;
-
+		
 	case OSYNC_CHANGE_TYPE_MODIFIED:
 		uid = (gchar*) osync_change_get_uid(change);
-		retVal = claws_mail_connect_modify_contact(uid,vcard);
-		if (!retVal) {
-			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to modify contact.");
+		retVal = claws_mail_connect_modify_event(uid,vevent);
+		if(!retVal) {
+			osync_error_set(&error, OSYNC_ERROR_GENERIC,
+											"Unable to modify event.");
 			goto error;
 		}
-		hash = contact_hash(vcard);
+		hash = event_hash(vevent);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
 		break;
@@ -267,18 +238,51 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 
 	/* Calculate the hash */
 	osync_hashtable_update_hash(sinkenv->hashtable,
-			osync_change_get_changetype(change), osync_change_get_uid(change),
-			osync_change_get_hash(change));
+															osync_change_get_changetype(change),
+															osync_change_get_uid(change),
+															osync_change_get_hash(change));
 
 	/* Answer the call */
 	osync_context_report_success(ctx);
-
+	
 	osync_trace(TRACE_EXIT, "%s", __func__);
 	return;
 
-	error:
+ error:
 
 	osync_context_report_osyncerror(ctx, error);
 	osync_trace(TRACE_EXIT_ERROR, "%s: %s", __func__, osync_error_print(&error));
 	osync_error_unref(&error);
+}
+
+static gchar* get_uid_from_event(gchar *vevent)
+{
+	gchar uid[BUFFSIZE];
+	gchar *start;
+	int ii;
+
+	start = strstr(vevent, VEVENT_UID_STR);
+	if (!start) {
+		osync_trace(TRACE_INTERNAL, "Claws Mail: Event doesn't have a UID. '%s'",
+								vevent);
+		return g_strdup("123");
+	}
+
+	start += strlen(VEVENT_UID_STR);
+	ii = 0;
+	while(start && *start && (*start != '\n') &&
+				(*start != '\r') && (ii < BUFFSIZE-1))
+		uid[ii++] = *start++;
+	uid[ii] = '\0';
+
+	return g_strdup(uid);
+}
+
+static gchar* event_hash(gchar *vevent)
+{
+	guint ihash;
+	gchar *hash;
+	ihash = g_str_hash(vevent);
+	hash = g_strdup_printf("%u", ihash);
+	return hash;
 }

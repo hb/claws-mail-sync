@@ -30,6 +30,13 @@ gchar*   claws_mail_connect_get_next_contact(void);
 
 gboolean claws_mail_connect_modify_contact(gchar*,gchar*);
 gboolean claws_mail_connect_delete_contact(gchar*);
-gchar* claws_mail_connect_add_contact(gchar*);
+gchar*   claws_mail_connect_add_contact(gchar*);
+
+gchar*   claws_mail_connect_get_events(void);
+gchar*   claws_mail_connect_get_next_event(void);
+
+gboolean claws_mail_connect_modify_event(gchar*,gchar*);
+gboolean claws_mail_connect_delete_event(gchar*);
+gchar*   claws_mail_connect_add_event(gchar*);
 
 #endif

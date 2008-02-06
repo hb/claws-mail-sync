@@ -6,6 +6,7 @@ SET( claws_mail_sync_LIB_SRCS
 claws_mail_sync.c
 claws_mail_connect.c
 claws_mail_contact.c
+claws_mail_event.c
 )
 
 OPENSYNC_PLUGIN_ADD( claws-mail-sync ${claws_mail_sync_LIB_SRCS} )

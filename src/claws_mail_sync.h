@@ -26,6 +26,7 @@
 typedef struct {
 	OSyncMember *member;
 	OSyncHashTable *hashtable;
+	OSyncObjTypeSink *mainsink;
 	GList *sinks;
 } ClawsMailEnv;
 
