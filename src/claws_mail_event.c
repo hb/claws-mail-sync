@@ -263,7 +263,7 @@ static gchar* get_uid_from_event(gchar *vevent)
 
 	start = strstr(vevent, VEVENT_UID_STR);
 	if (!start) {
-		osync_trace(TRACE_INTERNAL, "Claws Mail: Event doesn't have a UID. '%s'",
+		osync_trace(TRACE_INTERNAL, "Claws Mail: Event doesn't have a UID: '%s'",
 								vevent);
 		return g_strdup("123");
 	}
