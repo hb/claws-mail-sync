@@ -398,26 +398,32 @@ gboolean claws_mail_connect_delete_event(gchar *uid)
 	return retVal;
 }
 
-gchar* claws_mail_connect_add_event(gchar *vevent)
+gboolean claws_mail_connect_add_event(gchar *vevent)
 {
 	gchar *msg;
 	gboolean retVal;
 	char *line;
 	
+	retVal = FALSE;
 	if(!sock_send(uxsock, ":add_event:\n"))
-		return NULL;
+		return retVal;
 	
 	if (!sock_send(uxsock, ":start_event:\n"))
-		return NULL;
+		return retVal;
 
 	msg = g_strdup_printf("%s\n", vevent);
 	retVal = sock_send(uxsock, msg);
 	g_free(msg);
 	if (!retVal)
-		return NULL;
+		return retVal;
 
 	if (!sock_send(uxsock, ":end_event:\n"))
-		return NULL;
+		return retVal;
 	
-	return claws_mail_connect_get_next_event();
+	line = sock_get_next_line(uxsock);
+	retVal = FALSE;
+	if (line && g_str_has_prefix(line, ":ok:"))
+		retVal = TRUE;
+
+	return retVal;
 }

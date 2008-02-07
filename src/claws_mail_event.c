@@ -168,7 +168,6 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 {
 	gboolean retVal;
 	gchar *vevent;
-	gchar *added_vevent;
 	char *uid;
 	char *hash;
 	OSyncError *error = NULL;
@@ -197,24 +196,15 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 		break;
 
 	case OSYNC_CHANGE_TYPE_ADDED:
-		added_vevent = claws_mail_connect_add_event(vevent);
-		if (!added_vevent) {
+		if(!claws_mail_connect_add_event(vevent)) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write event.");
 			goto error;
 		}
 
-		uid = get_uid_from_event(added_vevent);
-		osync_change_set_uid(change, uid);
-		g_free(uid);
-
 		/* generate and set hash of entry */
-		hash = event_hash(added_vevent);
+		hash = event_hash(vevent);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
-		
-		/* the data changed too (UID field) */
-		osync_data_set_data(osync_change_get_data(change),
-												added_vevent, strlen(added_vevent));
 		
 		break;
 		
