@@ -46,10 +46,18 @@ void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
 
 	OSyncError *error = NULL;
 
+	osync_hashtable_reset_reports(sinkenv->hashtable);
+
 	/* check for slowsync and prepare the "event" hashtable if needed */
 	if(osync_objtype_sink_get_slowsync(sinkenv->sink)) {
 		osync_trace(TRACE_INTERNAL, "Slow sync requested");
-		osync_hashtable_reset(sinkenv->hashtable);
+		if(!osync_hashtable_slowsync(sinkenv->hashtable, &error))	{
+			osync_context_report_osyncerror(ctx, error);
+			osync_trace(TRACE_EXIT_ERROR, "%s - %s", __func__,
+									osync_error_print(&error));
+			osync_error_unref(&error);
+			return;
+		}
 	}
 
 	/* While getting all events, one at a time */
