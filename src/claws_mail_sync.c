@@ -199,8 +199,8 @@ static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info,
   OSyncObjTypeSinkFunctions event_functions;
   memset(&event_functions, 0, sizeof(event_functions));
   
-	event_functions.get_changes = claws_mail_contact_get_changes;
-  event_functions.commit      = claws_mail_contact_commit_change;
+	event_functions.get_changes = claws_mail_event_get_changes;
+  event_functions.commit      = claws_mail_event_commit_change;
 
   osync_objtype_sink_set_functions(event_sinkenv->sink, event_functions,
 																	 event_sinkenv);
