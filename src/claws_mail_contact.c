@@ -225,10 +225,7 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 
 	case OSYNC_CHANGE_TYPE_DELETED:
 
-		uid = get_uid_from_vcard(vcard);
-		retVal = claws_mail_connect_delete_contact(vcard);
-		g_free(uid);
-		if (!retVal) {
+		if(!claws_mail_connect_delete_contact(osync_change_get_uid(change))) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to delete contact.");
 			goto error;
 		}

@@ -192,10 +192,7 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 	switch (osync_change_get_changetype(change)) {
 		
 	case OSYNC_CHANGE_TYPE_DELETED:
-
-		uid = get_uid_from_event(vevent);
-		retVal = claws_mail_connect_delete_event(vevent);
-		g_free(uid);
+		retVal = claws_mail_connect_delete_event(osync_change_get_uid(change));
 		if(!retVal) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC,
 											"Unable to delete event.");
@@ -242,7 +239,7 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 
 	/* Answer the call */
 	osync_context_report_success(ctx);
-	
+
 	osync_trace(TRACE_EXIT, "%s", __func__);
 	return;
 
@@ -258,6 +255,11 @@ static gchar* get_uid_from_event(gchar *vevent)
 	gchar uid[BUFFSIZE];
 	gchar *start;
 	int ii;
+
+	if (!vevent) {
+		osync_trace(TRACE_INTERNAL, "Claws Mail: Event UID search: No event given");
+		return g_strdup("123");
+	}
 
 	start = strstr(vevent, VEVENT_UID_STR);
 	if (!start) {
