@@ -26,7 +26,7 @@
 #include <glib.h>
 #include <string.h>
 
-#define VEVENT_UID_STR "\nUID:"
+#define VEVENT_UID_STR "\nUID\n :"
 
 static gchar* event_hash(gchar*);
 static gchar* get_uid_from_event(gchar*);
