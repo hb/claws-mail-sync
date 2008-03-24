@@ -240,7 +240,7 @@ gboolean claws_mail_connect_modify_contact(gchar *uid,
 	return retVal;
 }
 
-gboolean claws_mail_connect_delete_contact(gchar *uid)
+gboolean claws_mail_connect_delete_contact(const gchar *uid)
 {
 	gchar *msg;
 	gboolean retVal;
