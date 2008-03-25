@@ -37,7 +37,6 @@ void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
 	int ii;
 	char **uids;
 	char *vevent;
-	ClawsMailEnv *env = (ClawsMailEnv*)userdata;
 
 	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p)", __func__, userdata, info, ctx);
 
@@ -179,7 +178,6 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 	char *uid;
 	char *hash;
 	OSyncError *error = NULL;
-	ClawsMailEnv *env = (ClawsMailEnv*)userdata;
 
 	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p, %p)",
 							__func__, userdata, info, ctx, change);

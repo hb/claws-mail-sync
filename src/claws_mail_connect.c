@@ -1,5 +1,5 @@
 /* Claws Mail plugin for OpenSync
- * Copyright (C) 2007 Holger Berndt
+ * Copyright (C) 2007-2008 Holger Berndt
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -375,7 +375,7 @@ gboolean claws_mail_connect_modify_event(gchar *uid,
 	return retVal;
 }
 
-gboolean claws_mail_connect_delete_event(gchar *uid)
+gboolean claws_mail_connect_delete_event(const gchar *uid)
 {
 	gchar *msg;
 	gboolean retVal;
