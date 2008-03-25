@@ -1,0 +1,11 @@
+This module is a Claws Mail plugin for OpenSync. It
+can be used to connect to Claws Mail in a synchronisation
+group. It supports address data and contact events.
+
+Claws Mail has to be running while the synchronisation is
+performed. Also, the OpenSync plugin for Claws Mail has
+to be loaded.
+
+This is alpha software. It requires at least an OpenSync
+version of the 0.3 branch. Be sure to back up your data
+on all sides of the sync group before trying this out.
