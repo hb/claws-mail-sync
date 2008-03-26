@@ -179,6 +179,7 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 	gchar *vevent;
 	char *uid;
 	char *hash;
+	char *new_event = NULL;
 	OSyncError *error = NULL;
 
 	osync_trace(TRACE_ENTRY, "%s(%p, %p, %p, %p)",
@@ -201,29 +202,30 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 		break;
 
 	case OSYNC_CHANGE_TYPE_ADDED:
-		if(!claws_mail_connect_add_event(vevent)) {
+		if(new_event = claws_mail_connect_add_event(vevent)) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write event.");
 			goto error;
 		}
 
 		/* generate and set hash of entry */
-		hash = event_hash(vevent);
+		hash = event_hash(new_event);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
-		
+		g_free(new_event);
 		break;
 		
 	case OSYNC_CHANGE_TYPE_MODIFIED:
 		uid = (gchar*) osync_change_get_uid(change);
-		retVal = claws_mail_connect_modify_event(uid,vevent);
-		if(!retVal) {
+		new_event = claws_mail_connect_modify_event(uid,vevent);
+		if(!new_event) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC,
 											"Unable to modify event.");
 			goto error;
 		}
-		hash = event_hash(vevent);
+		hash = event_hash(new_event);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
+		g_free(new_event);
 		break;
 
 	default:

@@ -249,18 +249,20 @@ void claws_mail_contact_commit_change(void *userdata, OSyncPluginInfo *info,
 		osync_data_set_data(osync_change_get_data(change),
 				added_vcard, strlen(added_vcard));
 
+		g_free(added_vcard);
 		break;
 
 	case OSYNC_CHANGE_TYPE_MODIFIED:
 		uid = (gchar*) osync_change_get_uid(change);
-		retVal = claws_mail_connect_modify_contact(uid,vcard);
-		if (!retVal) {
+		added_vcard = claws_mail_connect_modify_contact(uid,vcard);
+		if (!added_vcard) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to modify contact.");
 			goto error;
 		}
-		hash = contact_hash(vcard);
+		hash = contact_hash(added_vcard);
 		osync_change_set_hash(change, hash);
 		g_free(hash);
+		g_free(added_vcard);
 		break;
 
 	default:
