@@ -75,6 +75,7 @@ void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
 		data = vevent;
 
 		/* Report every entry .. every unreported entry got deleted. */
+		osync_trace(TRACE_INTERNAL, "hhb: Report: %s",uid);
 		osync_hashtable_report(sinkenv->hashtable, uid);
 
 		changetype = osync_hashtable_get_changetype(sinkenv->hashtable, uid, hash);
@@ -94,6 +95,8 @@ void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
 		if(!change) {
 			osync_context_report_osyncwarning(ctx, error);
 			osync_error_unref(&error);
+			g_free(uid);
+			g_free(hash);
 			continue;
 		}
 
@@ -103,6 +106,7 @@ void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
 		osync_change_set_changetype(change, changetype);
 
 		g_free(hash);
+		g_free(uid);
 
 		odata = osync_data_new(data, strlen(data), sinkenv->objformat, &error);
 		if (!odata) {
@@ -122,8 +126,6 @@ void claws_mail_event_get_changes(void *userdata, OSyncPluginInfo *info,
 		osync_context_report_change(ctx, change);
 
 		osync_change_unref(change);
-
-		g_free(uid);
 	}
 
 	/* Check for deleted entries */
