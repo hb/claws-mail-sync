@@ -202,7 +202,7 @@ void claws_mail_event_commit_change(void *userdata, OSyncPluginInfo *info,
 		break;
 
 	case OSYNC_CHANGE_TYPE_ADDED:
-		if(new_event = claws_mail_connect_add_event(vevent)) {
+		if((new_event = claws_mail_connect_add_event(vevent)) == NULL) {
 			osync_error_set(&error, OSYNC_ERROR_GENERIC, "Unable to write event.");
 			goto error;
 		}
