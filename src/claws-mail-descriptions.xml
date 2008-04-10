@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<versions version="0.1">
+        <version>
+               <PlugIn>claws-mail-sync</PlugIn>
+               <Priority>100</Priority>
+							 <Vendor>Claws Mail</Vendor>
+							 <ModelVersion>"3.3.1"</ModelVersion>
+							 <FirmwareVersion>"3.3.1"</FirmwareVersion>
+							 <SoftwareVersion>"3.3.1"</SoftwareVersion>
+							 <HardwareVersion>"3.3.1"</HardwareVersion>
+               <Identifier>claws-mail-capabilities-default.xml</Identifier>
+        </version>
+</versions>

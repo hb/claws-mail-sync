@@ -127,7 +127,6 @@ static void* initialize(OSyncPlugin *plugin, OSyncPluginInfo *info,
     osync_error_set(error, OSYNC_ERROR_GENERIC, "Unable to get config data.");
     goto error_free_env;
   }
-	
   osync_trace(TRACE_INTERNAL, "Config: '%s'", configdata);
 
 	/* main sink */
@@ -249,6 +248,11 @@ static osync_bool discover(void *userdata, OSyncPluginInfo *info,
 
   OSyncVersion *version = osync_version_new(error);
   osync_version_set_plugin(version, "claws-mail-sync");
+	osync_version_set_modelversion(version, "3.3.1");
+	osync_version_set_vendor(version,"Claws Mail");
+	osync_version_set_firmwareversion(version, "3.3.1");
+	osync_version_set_softwareversion(version, "3.3.1");
+	osync_version_set_hardwareversion(version, "3.3.1");
   osync_plugin_info_set_version(info, version);
   osync_version_unref(version);
 
